@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UrbanSweep | Mapa de Usos Urbanos</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.fullscreen/2.4.0/Control.FullScreen.css" />
+    <style>
+        :root {
+            --primary: #0071e3;
+            --secondary: #86868b;
+            --background: #f5f5f7;
+            --surface: #ffffff;
+            --text-primary: #1d1d1f;
+            --text-secondary: #86868b;
+        }
+
+        :root[data-theme="dark"] {
+            --primary: #0a84ff;
+            --secondary: #8e8e93;
+            --background: #1c1c1e;
+            --surface: #2c2c2e;
+            --text-primary: #ffffff;
+            --text-secondary: #8e8e93;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: var(--background);
+            color: var(--text-primary);
+            line-height: 1.6;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        /* Layout Principal */
+        .app-container {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            grid-template-rows: 60px 1fr;
+            height: 100vh;
+        }
+
+        /* Header */
+        .app-header {
+            grid-column: 1 / -1;
+            background-color: var(--surface);
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            z-index: 1000;
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+
+        .logo {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: color 0.3s;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        /* Painel Lateral */
+        .control-panel {
+            background-color: var(--surface);
+            border-right: 1px solid rgba(0,0,0,0.1);
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+
+        .panel-section {
+            background-color: var(--background);
+            border-radius: 12px;
+            padding: 16px;
+            transition: background-color 0.3s;
+        }
+
+        .section-title {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: color 0.3s;
+        }
+
+        /* Mapa */
+        .map-container {
+            position: relative;
+            background-color: var(--background);
+            transition: background-color 0.3s;
+        }
+
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+
+        /* Componentes de UI */
+        .input-group {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            transition: color 0.3s;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--text-secondary);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            background-color: var(--surface);
+            color: var(--text-primary);
+            transition: border-color 0.3s, background-color 0.3s, color 0.3s;
+        }
+
+        select[multiple] {
+            height: 120px;
+            padding: 8px;
+        }
+
+        select[multiple] option {
+            padding: 6px 8px;
+            border-radius: 4px;
+            margin: 2px 0;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        select[multiple] option:hover {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .btn-sm {
+            padding: 6px 10px;
+            font-size: 0.8rem;
+        }
+
+        .btn-secondary {
+            background-color: var(--secondary);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* Legendas */
+        .legend-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            font-size: 0.75rem;
+            background-color: var(--surface);
+            padding: 4px 8px;
+            border-radius: 6px;
+            border: 1px solid rgba(0,0,0,0.1);
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+
+        /* Resultados */
+        .results-container {
+            flex-grow: 1;
+            overflow-y: auto;
+        }
+
+        .result-item {
+            background-color: var(--surface);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .result-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            border-color: var(--primary);
+        }
+
+        .result-title {
+            font-weight: 500;
+            margin-bottom: 4px;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            transition: color 0.3s;
+        }
+
+        .result-meta {
+            display: flex;
+            gap: 8px;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            transition: color 0.3s;
+        }
+
+        .result-category {
+            background-color: var(--background);
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        /* Cluster personalizado */
+        .cluster-custom {
+            background-color: var(--primary);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.3);
+            transition: background-color 0.3s, box-shadow 0.3s;
+        }
+
+        /* Controles do mapa */
+        .map-controls {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .map-control {
+            background-color: var(--surface);
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            transition: background-color 0.3s, box-shadow 0.3s;
+        }
+
+        .scale-control {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 1000;
+            background-color: var(--surface);
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 0.75rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            color: var(--text-primary);
+            transition: background-color 0.3s, color 0.3s, box-shadow 0.3s;
+        }
+
+        .north-arrow {
+            position: absolute;
+            top: 120px;
+            right: 15px;
+            z-index: 1000;
+            background-color: var(--surface);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: background-color 0.3s, box-shadow 0.3s;
+        }
+
+        /* Botão de tema */
+        .theme-toggle {
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .theme-toggle:hover {
+            background-color: var(--background);
+        }
+
+        /* Responsividade */
+        @media (max-width: 768px) {
+            .app-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: 60px auto 1fr;
+            }
+
+            .control-panel {
+                grid-row: 2;
+                border-right: none;
+                border-bottom: 1px solid rgba(0,0,0,0.1);
+            }
+
+            .map-controls {
+                top: 10px;
+                right: 10px;
+            }
+        }
+
+        /* Loading */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+
+        .loading-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid var(--background);
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .loading-text {
+            position: absolute;
+            margin-top: 80px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Loading local */
+        .loading-local {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+
+        .loading-local.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .loading-local-spinner {
+            width: 30px;
+            height: 30px;
+            border: 2px solid var(--background);
+            border-top: 2px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .loading-local-text {
+            color: var(--text-primary);
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Loading Global -->
+        <div class="loading-overlay" id="loading-overlay">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Carregando dados...</div>
+        </div>
+
+        <!-- Loading Local -->
+        <div class="loading-local" id="loading-local">
+            <div class="loading-local-spinner"></div>
+            <div class="loading-local-text">Atualizando mapa...</div>
+        </div>
+
+        <header class="app-header">
+            <div class="logo">
+                <i class="fas fa-city"></i>
+                <span>UrbanSweep</span>
+            </div>
+            <div class="header-actions">
+                <button id="theme-toggle" class="theme-toggle" aria-label="Alternar tema">
+                    <i class="fas fa-moon"></i>
+                </button>
+                <button id="export-csv" class="btn btn-sm btn-secondary">
+                    <i class="fas fa-file-csv"></i> CSV
+                </button>
+                <button id="export-pdf" class="btn btn-sm btn-secondary">
+                    <i class="fas fa-file-pdf"></i> PDF
+                </button>
+                <button id="export-img" class="btn btn-sm btn-secondary">
+                    <i class="fas fa-image"></i> Imagem
+                </button>
+            </div>
+        </header>
+
+        <aside class="control-panel">
+            <div class="panel-section">
+                <h3 class="section-title">Configurações do Mapa</h3>
+                <div class="input-group">
+                    <label for="radius">Raio de Busca (metros)</label>
+                    <input type="number" id="radius" value="500" min="50" max="5000">
+                </div>
+                <div class="input-group">
+                    <label for="cluster-intensity">Intensidade de Cluster</label>
+                    <select id="cluster-intensity">
+                        <option value="low">Baixa</option>
+                        <option value="medium" selected>Média</option>
+                        <option value="high">Alta</option>
+                    </select>
+                </div>
+                <div class="btn-group">
+                    <button id="search-btn" class="btn">
+                        <i class="fas fa-search"></i> Buscar
+                    </button>
+                    <button id="select-all-categories" class="btn btn-secondary">
+                        <i class="fas fa-layer-group"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <h3 class="section-title">Filtros</h3>
+                <div class="input-group">
+                    <label for="category-filter">Categorias Disponíveis</label>
+                    <select id="category-filter" multiple>
+                        <!-- Preenchido dinamicamente -->
+                    </select>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <h3 class="section-title">Legenda</h3>
+                <div id="legend" class="legend-container"></div>
+            </div>
+
+            <div class="panel-section results-container">
+                <h3 class="section-title">Resultados (<span id="result-count">0</span>)</h3>
+                <div id="results-list"></div>
+            </div>
+        </aside>
+
+        <main class="map-container">
+            <div id="map"></div>
+            <div class="map-controls">
+                <div class="map-control">
+                    <button id="toggle-satellite" class="btn btn-sm">
+                        <i class="fas fa-satellite"></i> Satélite
+                    </button>
+                </div>
+            </div>
+            <div class="scale-control" id="scale-control"></div>
+            <div class="north-arrow">
+                <i class="fas fa-arrow-up" id="north-arrow"></i>
+            </div>
+        </main>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.fullscreen/2.4.0/Control.FullScreen.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script>
+        // Configurações iniciais
+        const config = {
+            center: [-26.48007090986404, -48.9849781580583],
+            zoom: 16,
+            radius: 500,
+            clusterIntensity: 'medium',
+            mapStyle: 'street'
+        };
+
+        // Categorias e cores
+        const categories = {
+            shop: {
+                name: 'Lojas',
+                color: '#0071e3',
+                icon: 'fas fa-shopping-bag',
+                osmKey: 'shop'
+            },
+            amenity: {
+                name: 'Serviços',
+                color: '#34c759',
+                icon: 'fas fa-concierge-bell',
+                osmKey: 'amenity'
+            },
+            office: {
+                name: 'Escritórios',
+                color: '#af52de',
+                icon: 'fas fa-building',
+                osmKey: 'office'
+            },
+            tourism: {
+                name: 'Turismo',
+                color: '#ff9500',
+                icon: 'fas fa-umbrella-beach',
+                osmKey: 'tourism'
+            },
+            leisure: {
+                name: 'Lazer',
+                color: '#ff2d55',
+                icon: 'fas fa-gamepad',
+                osmKey: 'leisure'
+            },
+            healthcare: {
+                name: 'Saúde',
+                color: '#ff3b30',
+                icon: 'fas fa-hospital',
+                osmKey: 'healthcare'
+            },
+            education: {
+                name: 'Educação',
+                color: '#5856d6',
+                icon: 'fas fa-school',
+                osmKey: 'amenity'
+            },
+            default: {
+                name: 'Outros',
+                color: '#86868b',
+                icon: 'fas fa-map-marker-alt',
+                osmKey: ''
+            }
+        };
+
+        // Variáveis globais
+        let map;
+        let markersCluster;
+        let currentMarkers = [];
+        let currentLocationMarker;
+        let searchRadiusCircle;
+        let baseLayers = {};
+        let currentLayer;
+        let allCategories = [];
+
+        // Inicialização do mapa
+        async function initMap() {
+            showLoading(true); // Mostrar loading global durante inicialização
+            
+            try {
+                // Criar mapa
+                map = L.map('map').setView(config.center, config.zoom);
+                
+                // Configurar camadas base
+                setupBaseLayers();
+                
+                // Configurar clusterização
+                setupCluster();
+
+                // Adicionar controle de tela cheia
+                L.control.fullscreen({
+                    position: 'topleft',
+                    title: 'Tela Cheia',
+                    titleCancel: 'Sair da Tela Cheia',
+                    forceSeparateButton: true
+                }).addTo(map);
+
+                // Marcador de localização
+                currentLocationMarker = L.marker(config.center, {
+                    icon: L.divIcon({
+                        className: 'current-location-marker',
+                        html: '<div style="background: #ff3b30; width: 16px; height: 16px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 0 2px #ff3b30;"></div>',
+                        iconSize: [22, 22]
+                    }),
+                    zIndexOffset: 1000,
+                    draggable: true
+                }).addTo(map);
+
+                // Círculo do raio de busca
+                searchRadiusCircle = L.circle(config.center, {
+                    radius: config.radius,
+                    color: '#0071e3',
+                    fillColor: '#0071e3',
+                    fillOpacity: 0.1,
+                    weight: 2,
+                    dashArray: '5,5'
+                }).addTo(map);
+
+                // Evento de clique no mapa
+                map.on('click', (e) => {
+                    currentLocationMarker.setLatLng(e.latlng);
+                    updateSearchRadius();
+                    fetchPOIData();
+                });
+
+                // Evento de arrastar marcador
+                currentLocationMarker.on('dragend', () => {
+                    updateSearchRadius();
+                    fetchPOIData();
+                });
+
+                // Atualizar escala quando o zoom muda
+                map.on('zoomend', updateScale);
+                
+                // Atualizar seta do norte quando o mapa gira
+                map.on('rotate', updateNorthArrow);
+
+                // Carregar dados iniciais
+                populateCategoryFilter();
+                await fetchPOIData();
+                updateLegend();
+                updateScale();
+                updateNorthArrow();
+            } catch (error) {
+                console.error('Erro ao inicializar mapa:', error);
+                showErrorNotification('Erro ao carregar o mapa. Recarregue a página.');
+            } finally {
+                showLoading(false); // Remover loading global
+            }
+        }
+
+        // Configurar camadas base
+        function setupBaseLayers() {
+            // Camada de ruas (monocromática)
+            baseLayers.street = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+                maxZoom: 19
+            });
+
+            // Camada de satélite
+            baseLayers.satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: '&copy; <a href="https://www.esri.com/">Esri</a>',
+                maxZoom: 19
+            });
+
+            // Adicionar camada padrão
+            baseLayers.street.addTo(map);
+            currentLayer = 'street';
+        }
+
+        // Alternar entre mapas de rua e satélite
+        function toggleMapStyle() {
+            if (currentLayer === 'street') {
+                baseLayers.street.remove();
+                baseLayers.satellite.addTo(map);
+                currentLayer = 'satellite';
+                document.getElementById('toggle-satellite').innerHTML = '<i class="fas fa-map"></i> Rua';
+            } else {
+                baseLayers.satellite.remove();
+                baseLayers.street.addTo(map);
+                currentLayer = 'street';
+                document.getElementById('toggle-satellite').innerHTML = '<i class="fas fa-satellite"></i> Satélite';
+            }
+        }
+
+        // Configurar clusterização
+        function setupCluster() {
+            markersCluster = L.markerClusterGroup({
+                chunkedLoading: true,
+                showCoverageOnHover: false,
+                spiderfyOnMaxZoom: true,
+                maxClusterRadius: getClusterRadius(),
+                iconCreateFunction: function(cluster) {
+                    const count = cluster.getChildCount();
+                    return L.divIcon({
+                        html: `<div>${count}</div>`,
+                        className: 'cluster-custom',
+                        iconSize: L.point(40, 40)
+                    });
+                }
+            });
+            map.addLayer(markersCluster);
+        }
+
+        // Obter raio de cluster baseado na configuração
+        function getClusterRadius() {
+            switch(config.clusterIntensity) {
+                case 'low': return 40;
+                case 'high': return 100;
+                default: return 80;
+            }
+        }
+
+        // Atualizar círculo do raio de busca
+        function updateSearchRadius() {
+            const radius = document.getElementById('radius').value;
+            const center = currentLocationMarker.getLatLng();
+            
+            searchRadiusCircle.setLatLng(center);
+            searchRadiusCircle.setRadius(radius);
+        }
+
+        // Popular filtro de categorias
+        function populateCategoryFilter() {
+            const filter = document.getElementById('category-filter');
+            filter.innerHTML = '';
+            
+            Object.entries(categories).forEach(([key, category]) => {
+                if (key !== 'default') {
+                    const option = document.createElement('option');
+                    option.value = key;
+                    option.textContent = category.name;
+                    option.selected = true;
+                    filter.appendChild(option);
+                }
+            });
+        }
+
+        // Selecionar todas as categorias
+        function selectAllCategories() {
+            const options = document.getElementById('category-filter').options;
+            for (let i = 0; i < options.length; i++) {
+                options[i].selected = true;
+            }
+        }
+
+        // Buscar dados de POI
+        async function fetchPOIData() {
+            const radius = document.getElementById('radius').value;
+            const position = currentLocationMarker.getLatLng();
+            const selectedCategories = Array.from(document.getElementById('category-filter').selectedOptions)
+                .map(option => option.value);
+
+            try {
+                showLoading(true, true); // Usar loading local
+                clearResults();
+                
+                // Atualizar raio de busca
+                config.radius = radius;
+                updateSearchRadius();
+                
+                const response = await fetch(buildOverpassQuery(position.lat, position.lng, radius, selectedCategories));
+                const data = await response.json();
+                
+                // Extrair todas as categorias encontradas
+                extractFoundCategories(data.elements);
+                
+                processPOIData(data.elements);
+            } catch (error) {
+                console.error('Erro ao buscar dados:', error);
+                showErrorNotification('Não foi possível carregar os dados. Tente novamente mais tarde.');
+            } finally {
+                showLoading(false, true); // Remover loading local
+            }
+        }
+
+        // Extrair categorias encontradas nos resultados
+        function extractFoundCategories(elements) {
+            allCategories = [];
+            const foundCategories = new Set();
+            
+            elements.forEach(element => {
+                const category = getElementCategory(element.tags);
+                if (category && !foundCategories.has(category)) {
+                    foundCategories.add(category);
+                    allCategories.push(category);
+                }
+            });
+        }
+
+        // Construir query Overpass
+        function buildOverpassQuery(lat, lng, radius, categories) {
+            const categoriesQuery = categories.map(cat => {
+                const osmKey = categories[cat]?.osmKey || cat;
+                return `node["${osmKey}"~"."](around:${radius},${lat},${lng});`;
+            }).join('');
+            
+            return `https://overpass-api.de/api/interpreter?data=
+                [out:json];
+                (
+                    ${categoriesQuery}
+                );
+                out body;`;
+        }
+
+        // Processar dados de POI
+        function processPOIData(elements) {
+            markersCluster.clearLayers();
+            currentMarkers = [];
+            
+            if (elements.length === 0) {
+                document.getElementById('results-list').innerHTML = '<div class="result-item">Nenhum resultado encontrado nesta área</div>';
+                document.getElementById('result-count').textContent = '0';
+                return;
+            }
+            
+            const resultsList = document.getElementById('results-list');
+            resultsList.innerHTML = '';
+            
+            elements.forEach(element => {
+                const category = getElementCategory(element.tags);
+                const marker = createMarker(element, category);
+                
+                currentMarkers.push(marker);
+                markersCluster.addLayer(marker);
+                
+                addResultToList(element, category);
+            });
+            
+            document.getElementById('result-count').textContent = elements.length;
+            
+            // Ajustar visão do mapa para incluir todos os marcadores e o círculo de busca
+            if (elements.length > 0) {
+                const group = new L.featureGroup([...currentMarkers, searchRadiusCircle]);
+                map.fitBounds(group.getBounds(), { padding: [50, 50] });
+            }
+        }
+
+        // Obter categoria do elemento
+        function getElementCategory(tags) {
+            for (const [key, category] of Object.entries(categories)) {
+                if (key !== 'default' && tags[category.osmKey]) {
+                    return key;
+                }
+            }
+            return 'default';
+        }
+
+        // Criar marcador no mapa
+        function createMarker(element, category) {
+            const { color, icon } = categories[category];
+            
+            const marker = L.circleMarker([element.lat, element.lon], {
+                radius: 8,
+                fillColor: color,
+                color: '#ffffff',
+                weight: 1.5,
+                opacity: 1,
+                fillOpacity: 0.9
+            });
+            
+            // Popup com informações
+            const popupContent = `
+                <div style="min-width: 200px;">
+                    <h4 style="margin: 0 0 5px 0; color: ${color}">${element.tags.name || 'Sem nome'}</h4>
+                    <div style="display: flex; align-items: center; gap: 5px; margin-bottom: 5px;">
+                        <i class="${icon}" style="color: ${color}; font-size: 12px;"></i>
+                        <small>${categories[category].name}</small>
+                    </div>
+                    <p style="margin: 5px 0; font-size: 13px;">
+                        ${element.tags['addr:street'] || ''} ${element.tags['addr:housenumber'] || ''}
+                    </p>
+                    ${element.tags.website ? `<a href="${element.tags.website}" target="_blank" style="font-size: 13px;">Website</a>` : ''}
+                </div>
+            `;
+            
+            marker.bindPopup(popupContent);
+            return marker;
+        }
+
+        // Adicionar resultado à lista
+        function addResultToList(element, category) {
+            const { color, icon, name } = categories[category];
+            const resultsList = document.getElementById('results-list');
+            
+            const item = document.createElement('div');
+            item.className = 'result-item';
+            item.innerHTML = `
+                <div class="result-title">${element.tags.name || 'Nome não disponível'}</div>
+                <div class="result-meta">
+                    <span class="result-category" style="color: ${color}">
+                        <i class="${icon}"></i> ${name}
+                    </span>
+                    <span>${element.tags['addr:street'] || ''} ${element.tags['addr:housenumber'] || ''}</span>
+                </div>
+            `;
+            
+            item.addEventListener('click', () => {
+                map.setView([element.lat, element.lon], 18);
+                currentMarkers.find(m => 
+                    m.getLatLng().lat === element.lat && 
+                    m.getLatLng().lng === element.lon
+                ).openPopup();
+            });
+            
+            resultsList.appendChild(item);
+        }
+
+        // Atualizar legenda com categorias encontradas
+        function updateLegend() {
+            const legendContainer = document.getElementById('legend');
+            legendContainer.innerHTML = '';
+            
+            // Mostrar apenas categorias encontradas ou todas se nenhuma busca foi feita
+            const categoriesToShow = allCategories.length > 0 ? allCategories : Object.keys(categories).filter(k => k !== 'default');
+            
+            categoriesToShow.forEach(key => {
+                const { name, color } = categories[key];
+                const legendItem = document.createElement('div');
+                legendItem.className = 'legend-item';
+                legendItem.innerHTML = `
+                    <span class="legend-color" style="background-color: ${color};"></span>
+                    <span>${name}</span>
+                `;
+                legendContainer.appendChild(legendItem);
+            });
+        }
+
+        // Atualizar escala do mapa
+        function updateScale() {
+            const scale = L.control.scale({ imperial: false, position: 'bottomleft' });
+            document.getElementById('scale-control').textContent = getScaleText();
+        }
+
+        // Obter texto da escala
+        function getScaleText() {
+            const zoom = map.getZoom();
+            const metersPerPixel = 40075016.686 * Math.abs(Math.cos(map.getCenter().lat * Math.PI/180)) / Math.pow(2, zoom+8);
+            const scale = metersPerPixel * 100; // Para 100 pixels
+            
+            if (scale >= 1000) {
+                return `${(scale/1000).toFixed(1)} km`;
+            } else {
+                return `${Math.round(scale)} m`;
+            }
+        }
+
+        // Atualizar seta do norte
+        function updateNorthArrow() {
+            const arrow = document.getElementById('north-arrow');
+            arrow.style.transform = `rotate(${map.getBearing() || 0}deg)`;
+        }
+
+        // Exportar como CSV
+        function exportToCSV() {
+            const elements = currentMarkers.map(marker => {
+                const popup = marker.getPopup();
+                const content = popup.getContent();
+                const div = document.createElement('div');
+                div.innerHTML = content;
+                
+                return {
+                    nome: div.querySelector('h4').textContent,
+                    categoria: div.querySelector('small').textContent,
+                    endereco: div.querySelector('p').textContent.trim(),
+                    website: div.querySelector('a')?.href || '',
+                    latitude: marker.getLatLng().lat,
+                    longitude: marker.getLatLng().lng
+                };
+            });
+
+            // Criar cabeçalho do CSV
+            const headers = ['Nome', 'Categoria', 'Endereço', 'Website', 'Latitude', 'Longitude'];
+            const csvContent = [
+                headers.join(','),
+                ...elements.map(element => [
+                    `"${element.nome.replace(/"/g, '""')}"`,
+                    `"${element.categoria.replace(/"/g, '""')}"`,
+                    `"${element.endereco.replace(/"/g, '""')}"`,
+                    `"${element.website.replace(/"/g, '""')}"`,
+                    element.latitude,
+                    element.longitude
+                ].join(','))
+            ].join('\n');
+
+            // Criar e baixar arquivo
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `UrbanSweep_${new Date().toLocaleDateString().replace(/\//g, '-')}.csv`;
+            link.click();
+        }
+
+        // Exportar como PDF melhorado
+        async function exportToPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({
+                orientation: 'landscape',
+                unit: 'mm'
+            });
+            
+            // Configurações de página
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const margin = 15;
+            const contentWidth = pageWidth - (margin * 2);
+            
+            // Adicionar título
+            doc.setFontSize(20);
+            doc.setTextColor(0, 113, 227); // Cor primária
+            doc.text('UrbanSweep - Mapa de Usos Urbanos', pageWidth / 2, margin + 10, { align: 'center' });
+            
+            // Adicionar informações do mapa
+            doc.setFontSize(12);
+            doc.setTextColor(26, 26, 31); // Cor do texto primário
+            const date = new Date().toLocaleDateString();
+            doc.text(`Gerado em: ${date}`, pageWidth / 2, margin + 20, { align: 'center' });
+            
+            // Obter coordenadas atuais e raio
+            const center = currentLocationMarker.getLatLng();
+            const radius = document.getElementById('radius').value;
+            
+            // Adicionar coordenadas e raio
+            doc.text(`Localização: ${center.lat.toFixed(6)}, ${center.lng.toFixed(6)} | Raio: ${radius}m`, pageWidth / 2, margin + 28, { align: 'center' });
+            
+            // Ajustar visão do mapa para incluir todos os marcadores e o círculo de busca
+            const group = new L.featureGroup([...currentMarkers, searchRadiusCircle]);
+            map.fitBounds(group.getBounds(), { padding: [50, 50] });
+            
+            // Aguardar o mapa se ajustar
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Capturar mapa como imagem
+            const mapElement = document.getElementById('map');
+            const canvas = await html2canvas(mapElement, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: null
+            });
+            
+            // Adicionar imagem do mapa ao PDF
+            const imgData = canvas.toDataURL('image/png');
+            const imgProps = doc.getImageProperties(imgData);
+            const mapWidth = contentWidth;
+            const mapHeight = (imgProps.height * mapWidth) / imgProps.width;
+            
+            doc.addImage(imgData, 'PNG', margin, margin + 35, mapWidth, mapHeight);
+            
+            // Adicionar legenda
+            doc.setFontSize(14);
+            doc.setTextColor(0, 113, 227);
+            doc.text('Legenda:', margin, mapHeight + margin + 45);
+            
+            // Organizar legenda em colunas
+            const legendItems = Array.from(document.querySelectorAll('.legend-item'));
+            const itemsPerColumn = Math.ceil(legendItems.length / 3);
+            const columnWidth = contentWidth / 3;
+            
+            let currentColumn = 0;
+            let currentRow = 0;
+            
+            legendItems.forEach((item, index) => {
+                if (index > 0 && index % itemsPerColumn === 0) {
+                    currentColumn++;
+                    currentRow = 0;
+                }
+                
+                const x = margin + (currentColumn * columnWidth);
+                const y = mapHeight + margin + 55 + (currentRow * 8);
+                
+                const color = item.querySelector('.legend-color').style.backgroundColor;
+                const text = item.textContent.trim();
+                
+                // Adicionar círculo colorido
+                doc.setFillColor(color);
+                doc.circle(x + 2, y - 2, 2, 'F');
+                
+                // Adicionar texto
+                doc.setFontSize(10);
+                doc.setTextColor(26, 26, 31);
+                doc.text(text, x + 6, y);
+                
+                currentRow++;
+            });
+            
+            // Adicionar lista de resultados
+            if (currentMarkers.length > 0) {
+                const resultsStartY = mapHeight + margin + 55 + (itemsPerColumn * 8) + 10;
+                
+                doc.setFontSize(14);
+                doc.setTextColor(0, 113, 227);
+                doc.text('Resultados:', margin, resultsStartY);
+                
+                let currentY = resultsStartY + 10;
+                const resultsPerPage = 15;
+                let currentPage = 1;
+                
+                currentMarkers.forEach((marker, index) => {
+                    if (index > 0 && index % resultsPerPage === 0) {
+                        doc.addPage();
+                        currentPage++;
+                        currentY = margin + 20;
+                    }
+                    
+                    const popup = marker.getPopup();
+                    const content = popup.getContent();
+                    const div = document.createElement('div');
+                    div.innerHTML = content;
+                    
+                    const nome = div.querySelector('h4').textContent;
+                    const categoria = div.querySelector('small').textContent;
+                    const endereco = div.querySelector('p').textContent.trim();
+                    
+                    doc.setFontSize(12);
+                    doc.setTextColor(0, 113, 227);
+                    doc.text(nome, margin, currentY);
+                    
+                    doc.setFontSize(10);
+                    doc.setTextColor(26, 26, 31);
+                    doc.text(categoria, margin, currentY + 6);
+                    doc.text(endereco, margin, currentY + 12);
+                    
+                    currentY += 20;
+                });
+            }
+            
+            // Salvar PDF
+            doc.save(`UrbanSweep_${date.replace(/\//g, '-')}.pdf`);
+            
+            // Restaurar a visão original do mapa
+            map.setView(center, map.getZoom());
+        }
+
+        // Exportar como imagem
+        async function exportToImage() {
+            const container = document.querySelector('.map-container');
+            const canvas = await html2canvas(container, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#f5f5f7'
+            });
+            
+            const link = document.createElement('a');
+            link.download = `UrbanSweep_${new Date().toLocaleDateString().replace(/\//g, '-')}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        // Limpar resultados
+        function clearResults() {
+            document.getElementById('results-list').innerHTML = '';
+            document.getElementById('result-count').textContent = '0';
+            markersCluster.clearLayers();
+            currentMarkers = [];
+        }
+
+        // Mostrar/ocultar loading
+        function showLoading(show, isLocal = false) {
+            const overlay = document.getElementById('loading-overlay');
+            const local = document.getElementById('loading-local');
+            
+            if (isLocal) {
+                if (show) {
+                    local.classList.add('active');
+                } else {
+                    local.classList.remove('active');
+                }
+            } else {
+                if (show) {
+                    overlay.classList.add('active');
+                } else {
+                    overlay.classList.remove('active');
+                }
+            }
+        }
+
+        // Event listeners
+        document.getElementById('search-btn').addEventListener('click', fetchPOIData);
+        document.getElementById('radius').addEventListener('change', function() {
+            config.radius = this.value;
+            updateSearchRadius();
+            fetchPOIData();
+        });
+        document.getElementById('cluster-intensity').addEventListener('change', function() {
+            config.clusterIntensity = this.value;
+            map.removeLayer(markersCluster);
+            setupCluster();
+            fetchPOIData();
+        });
+        document.getElementById('category-filter').addEventListener('change', function() {
+            fetchPOIData();
+        });
+        document.getElementById('select-all-categories').addEventListener('click', function() {
+            selectAllCategories();
+            fetchPOIData();
+        });
+        document.getElementById('toggle-satellite').addEventListener('click', toggleMapStyle);
+        document.getElementById('export-csv').addEventListener('click', exportToCSV);
+        document.getElementById('export-pdf').addEventListener('click', exportToPDF);
+        document.getElementById('export-img').addEventListener('click', exportToImage);
+        document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+
+        // Função para alternar tema
+        function toggleTheme() {
+            const root = document.documentElement;
+            const isDark = root.getAttribute('data-theme') === 'dark';
+            const themeToggle = document.getElementById('theme-toggle');
+            
+            if (isDark) {
+                root.removeAttribute('data-theme');
+                themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
+                localStorage.setItem('theme', 'light');
+            } else {
+                root.setAttribute('data-theme', 'dark');
+                themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+
+        // Carregar tema salvo
+        function loadTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            const themeToggle = document.getElementById('theme-toggle');
+            
+            if (savedTheme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+            }
+        }
+
+        // Inicializar o mapa quando a página carregar
+        window.onload = () => {
+            loadTheme();
+            initMap();
+        };
+    </script>
+</body>
+</html>

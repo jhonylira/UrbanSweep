@@ -33,3 +33,4 @@ UrbanSweep é sua lupa digital para explorar pontos de interesse urbanos, filtra
 1. **Clone o repositório**:  
    ```bash  
    git clone https://github.com/seu-usuario/UrbanSweep.git  
+   Versao teste : https://jhonylira.github.io/UrbanSweep/
